@@ -126,6 +126,10 @@ CREATE (p:Person {id: 1, name: 'Alice', age: 30});
 MATCH (p:Person) RETURN p.name, p.age;
 ```
 
+## Configuration Settings
+
+All `CALL`-settable session settings (threads, timeout, checkpointing, spill behavior, plan/optimizer knobs) are documented in [Configuration Settings](reference/config.md).
+
 ## Shell Options
 
 | Flag | Description |
@@ -221,6 +225,7 @@ DETACH other;
 - [Cypher Query Reference](reference/cypher.md) — Cypher extensions for JSON, open-type graphs, Parquet on disk, Arrow memory
 - [DDL Reference](reference/ddl.md) — Icebug/Iceberg format Parquet, table creation with storage options
 - [Foreign Data Wrappers](reference/foreign.md) — DuckDB and other foreign database attachment details
+- [Configuration Settings](reference/config.md) — all `CALL <setting> = <value>` session settings with types and defaults
 - [Data Science](reference/data-science.md) — Icebug (networkit fork), Arrow-native graph algorithms
 - [Python Interface](reference/python-interface.md) — LadybugDB Python SDK
 - [JavaScript Interface](reference/javascript-interface.md) — LadybugDB Node.js SDK
