@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-lbug = "0.19.0"
+lbug = "0.21.2"
 ```
 
 ## Quick Start

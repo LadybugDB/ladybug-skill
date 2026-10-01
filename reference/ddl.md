@@ -60,6 +60,7 @@ WITH (storage = '/path/to/icebug-disk/');
 - No data is copied into Ladybug - queries run directly against the Parquet files
 - Works with Icebug format datasets that have proper metadata
 - Useful for large datasets where importing would be impractical
+- Icebug-disk export/compat targets **Icebug 13.2** with **Ladybug 0.21.2**
 
 ## Query Arrow Memory
 

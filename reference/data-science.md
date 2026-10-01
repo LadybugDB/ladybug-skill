@@ -31,9 +31,13 @@ CREATE MACRO my_udf(x, y) AS x + y;
 
 Ladybug prefers native integration with Icebug for data science workflows.
 
-### Icebug
+### Icebug (v13.2)
 
-[Icebug](https://github.com/Ladybug-Memory/icebug) is a fork of [networkit](https://networkit.github.io/) with emphasis on Apache Arrow. It is much more efficient to construct and run algorithms compared to NetworkX:
+[Icebug](https://github.com/Ladybug-Memory/icebug) is a fork of [networkit](https://networkit.github.io/) with emphasis on Apache Arrow. It is much more efficient to construct and run algorithms compared to NetworkX. This skill targets Icebug **13.2** (compatible with Ladybug **0.21.2**):
+
+```bash
+pip install icebug==13.2
+```
 
 - Arrow-native memory layout for efficient data transfer
 - Faster algorithm execution on large graphs

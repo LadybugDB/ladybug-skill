@@ -164,7 +164,7 @@ CREATE REL TABLE knows_rel (FROM ts.person TO ts.person)
 MATCH (a:ts.person)-[b:knows_rel]->(c:ts.person) RETURN count(*);
 ```
 
-### PostgreSQL (v0.19.0+)
+### PostgreSQL (v0.21.0+)
 
 Use the native `pg_client` extension (preferred over the DuckDB-based postgres extension). Both libpq connection strings and URLs are accepted:
 
