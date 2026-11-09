@@ -2,6 +2,11 @@
 
 LadybugDB is the continuation of Kuzu. The migration involves updating package imports and connection code.
 
+## Before You Start
+
+- The Python package is `ladybug` (`pip install ladybug`, `import ladybug`). `real_ladybug` / `real-ladybug` on PyPI is LadybugDB's old package name; it stopped at 0.15.3. Do not install it.
+- Copy every `.kuzu` database file before changing anything, and keep the original until the new database is verified: row counts for every node and relationship table match the old database. Do not delete it as part of the migration.
+
 ## Package Changes
 
 | Language | Old Package | New Package |
