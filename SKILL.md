@@ -1,7 +1,9 @@
 ---
 name: ladybug-skill
 description: >
-  Use this skill when writing code to talk to LadybugDB
+  Use this skill when writing code to talk to LadybugDB, or to Kùzu/KuzuDB
+  (`kuzu` package, `import kuzu`, `.kuzu` files). Kùzu is archived and
+  LadybugDB is its continuation, so this also covers migrating from Kùzu.
 ---
 
 # LadybugDB Shell
