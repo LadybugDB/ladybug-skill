@@ -11,7 +11,7 @@ description: >
 LadybugDB is a high-performance embedded graph database that speaks the ladybug dialect of Cypher. This doc covers the interactive **lbug shell** (CLI).
 
 For language-specific interfaces, see:
-- [Python Interface](reference/python-interface.md): `pip install ladybug` (`real_ladybug` is the old package name, stopped at 0.15.3)
+- [Python Interface](reference/python-interface.md)
 - [JavaScript Interface](reference/javascript-interface.md)
 - [Rust Interface](reference/rust-interface.md)
 - [Migrating from KuzuDB](reference/migration-from-kuzu.md)
