@@ -4,7 +4,7 @@ LadybugDB is the continuation of Kuzu. The migration involves updating package i
 
 ## Before You Start
 
-- The Python package is `ladybug` (`pip install ladybug`, `import ladybug`). `real_ladybug` / `real-ladybug` on PyPI is LadybugDB's old package name; it stopped at 0.15.3. Do not install it.
+- The Python package is `ladybug` and `real_ladybug` is obsolete; it stopped at 0.15.3.
 - Copy every `.kuzu` database file before changing anything, and keep the original until the new database is verified: row counts for every node and relationship table match the old database. Do not delete it as part of the migration.
 
 ## Package Changes
@@ -25,7 +25,7 @@ LadybugDB is the continuation of Kuzu. The migration involves updating package i
 pip install kuzu
 
 # New
-pip install ladybug
+uv pip install ladybug
 ```
 
 ### Code Changes
@@ -48,43 +48,11 @@ conn = lb.Connection(db)
 result = conn.execute("MATCH (n) RETURN n LIMIT 5")
 ```
 
-## kuzu and ladybug in One Process
-
-`kuzu` and `ladybug` register the same pybind11 types, so they cannot be used in one Python process, in either order. Whichever native module loads second fails. With `kuzu` imported first, ladybug's first call fails with:
-
-```
-RuntimeError: Could not find lbug C API shared library. Set LBUG_C_API_LIB_PATH or download a shared lib (...). The bundled _lbug extension, which is tried first, failed to load: generic_type: type "Database" is already registered!
-```
-
-With ladybug loaded first, `import kuzu` fails with `ImportError: generic_type: type "Database" is already registered!`.
-
-The cause is the end of the message. Do not follow its hint to download a shared library or set `LBUG_C_API_LIB_PATH`, and do not patch pybind11's type registry: neither fixes the clash.
-
-- Migrate every module in one change. The Python API is the same, so this is usually only the import and the `kuzu.` prefix.
-- If some code has to stay on `kuzu` (a dependency still requires it, or you were asked to leave a module on Kuzu for now), run that code in its own process and never import `kuzu` in the process that uses `ladybug`. A small worker that prints JSON is enough:
-
-```python
-# kuzu_worker.py: run as a script; the only entry point that imports kuzu code
-import json, sys
-import legacy  # your module that still uses kuzu
-
-print(json.dumps(legacy.query(sys.argv[1])))
-```
-
-```python
-# in the ladybug process
-import json, subprocess, sys
-
-out = subprocess.run([sys.executable, "kuzu_worker.py", "some-arg"],
-                     capture_output=True, text=True, check=True).stdout
-result = json.loads(out)
-```
-
 ## Database Files
 
 LadybugDB upgrades its own database files in place (since v0.17.0); once a file is upgraded, an older LadybugDB version cannot open it.
 
-Kuzu database files are not opened directly: ladybug 0.22.3 refuses a file written by kuzu 0.11.3 with "not a valid Lbug database file". Move the data with EXPORT/IMPORT, each step in its own process (see above):
+Kuzu database files are not opened directly: ladybug 0.22.3 refuses a file written by kuzu 0.11.3 with "not a valid Lbug database file". Move the data with EXPORT/IMPORT, each step in its own process (`kuzu` and `ladybug` cannot be loaded in one Python process):
 
 ```python
 # 1. With kuzu: export
