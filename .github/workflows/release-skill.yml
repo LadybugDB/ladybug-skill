@@ -1,0 +1,148 @@
+# Builds the installable ladybugdb-skill bundle and attaches it to the
+# GitHub Release. Trigger: publishing a Release in the GitHub UI
+# ("make a release" when there is a significant skill update), or manual
+# dispatch for a given tag.
+#
+# What it does:
+#   1. Stages SKILL.md + reference/ (renames frontmatter `name:` to
+#      `ladybugdb-skill`, the install name served on ladybugdb.com).
+#   2. Zips it with SKILL.md at the archive root (required by the
+#      agent-skills discovery spec) and uploads it to the release as
+#      `ladybugdb-skill.zip` (stable URL per tag).
+#   3. Appends the sha256 digest + a ready-to-paste index.json entry to the
+#      release notes. Paste that entry into
+#      ladybugdb-web's public/.well-known/agent-skills/index.json and the
+#      site serves the new version on its next deploy.
+#
+# Flow: make release in UI -> asset + digest appear on the release ->
+#       paste entry into ladybugdb-web -> commit -> site deploys -> live.
+
+name: Attach skill bundle to release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re)build the bundle for"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      SKILL_NAME: ladybugdb-skill
+      ASSET: ladybugdb-skill.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Build skill bundle
+        id: build
+        run: |
+          python3 - <<'EOF'
+          import os, re
+
+          skill_name = os.environ["SKILL_NAME"]
+          stage = "bundle-stage"
+          os.system(f"rm -rf {stage} && mkdir -p {stage}/reference")
+
+          # Stage SKILL.md with the install name in frontmatter.
+          with open("SKILL.md", encoding="utf-8") as f:
+              text = f.read()
+          m = re.match(r"\A---\r?\n([\s\S]*?)\r?\n---", text)
+          assert m, "SKILL.md has no frontmatter block"
+          head = re.sub(r"(?m)^name:\s*.*$", f"name: {skill_name}", m.group(0), count=1)
+          assert re.search(rf"(?m)^name:\s*{re.escape(skill_name)}\s*$", head), "rename failed"
+          text = head + text[m.end():]
+          with open(f"{stage}/SKILL.md", "w", encoding="utf-8") as f:
+              f.write(text)
+
+          # Stage reference files.
+          ref_files = []
+          for root, _, files in os.walk("reference"):
+              for fn in files:
+                  src = os.path.join(root, fn)
+                  dst = os.path.join(stage, src)
+                  os.makedirs(os.path.dirname(dst), exist_ok=True)
+                  with open(src, "rb") as f:
+                      data = f.read()
+                  with open(dst, "wb") as f:
+                      f.write(data)
+                  ref_files.append(src.replace(os.sep, "/"))
+          ref_files.sort()
+          assert ref_files, "no reference files staged"
+
+          # Folded frontmatter description for the index.json snippet.
+          fm = {}
+          current = None
+          for line in m.group(1).splitlines():
+              kv = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+              if kv and not line[:1].isspace():
+                  current = kv.group(1)
+                  v = kv.group(2).strip()
+                  fm[current] = "" if v in (">", "|") else kv.group(2)
+              elif current and re.match(r"^\s+\S", line):
+                  fm[current] += (" " if fm[current] else "") + line.strip()
+          desc = re.sub(r"\s+", " ", fm.get("description", "")).strip()
+          assert desc, "frontmatter description missing"
+
+          with open("bundle-files.txt", "w", encoding="utf-8") as f:
+              f.write("SKILL.md\n" + "\n".join(ref_files) + "\n")
+          with open("bundle-description.txt", "w", encoding="utf-8") as f:
+              f.write(desc)
+          print(f"staged SKILL.md + {len(ref_files)} reference files")
+          EOF
+
+      - name: Zip bundle (SKILL.md at archive root)
+        run: |
+          cd bundle-stage
+          # shellcheck disable=SC2046
+          zip -X -qr "../${ASSET}" SKILL.md $(sort ../bundle-files.txt | grep -v '^SKILL.md$')
+          cd ..
+          unzip -l "${ASSET}"
+
+      - name: Upload asset and record digest in release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" "$ASSET" --clobber
+          DIGEST="sha256:$(sha256sum "$ASSET" | cut -d' ' -f1)"
+          DESC="$(cat bundle-description.txt)"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET}"
+          ENTRY="$(python3 -c 'import json,sys; print(json.dumps({"name": sys.argv[1], "description": sys.argv[2], "type": "archive", "url": sys.argv[3], "digest": sys.argv[4]}, indent=2))' \
+            "$SKILL_NAME" "$DESC" "$URL" "$DIGEST")"
+
+          BODY="$(gh release view "$TAG" --json body -q .body)"
+          # Drop any previous machine-generated block (idempotent re-runs).
+          BODY="$(printf '%s' "$BODY" | python3 -c 'import sys,re; print(re.split(r"<!-- ladybugdb-skill -->", sys.stdin.read())[0].rstrip())')"
+
+          NOTES_FILE="$(mktemp)"
+          {
+            printf '%s\n\n' "$BODY"
+            printf '<!-- ladybugdb-skill -->\n'
+            printf '## ladybugdb.com skill bundle\n\n'
+            printf 'Install with:\n\n'
+            printf '```bash\nnpx skills add https://ladybugdb.com --skill %s\n```\n\n' "$SKILL_NAME"
+            printf 'To serve this release from ladybugdb.com, set\n'
+            printf '`public/.well-known/agent-skills/index.json` in ladybugdb-web to:\n\n'
+            printf '```json\n{\n  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",\n'
+            printf '  "skills": [\n%s\n  ]\n}\n```\n' "$ENTRY"
+          } > "$NOTES_FILE"
+          gh release edit "$TAG" --notes-file "$NOTES_FILE"
+
+          {
+            echo "### Published skill bundle"
+            echo ""
+            echo "- Release asset: $URL"
+            echo "- Digest: \`$DIGEST\`"
+            echo ""
+            echo "Paste the entry from the release notes into ladybugdb-web's index.json."
+          } >> "$GITHUB_STEP_SUMMARY"
