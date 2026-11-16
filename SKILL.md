@@ -26,6 +26,45 @@ lbug my_database.lbdb
 lbug :memory:
 ```
 
+## Agent Mode
+
+When an AI coding agent drives `lbug` through a pipe, switch the shell to
+agent mode: compact Markdown tables, capped results with footers, and JSON
+errors on stderr. It turns on automatically when an agent-identifying
+environment variable is set (`AI_AGENT`, `AGENT`, `CLAUDECODE`, `CODEX_CI`,
+`CODEX_SANDBOX`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`,
+`COPILOT_AGENT`, `COPILOT_CLI`, `COPILOT_AGENT_SESSION_ID`), stdout is not a
+terminal, and no output-format flag was passed.
+
+```bash
+# Force agent mode on (or off) explicitly
+lbug --agent my_database.lbdb
+lbug --no_agent my_database.lbdb
+LBUG_AGENT_MODE=1 lbug my_database.lbdb
+```
+
+When active (see `.help agent` inside the shell for the full rules):
+
+- Results print as compact Markdown tables with the column type in the
+  header (`| name:STRING | age:INT64 |`), without alignment padding.
+- At most 1000 rows / 10000 bytes print in full (`.maxrows N`, `.maxbytes N`;
+  `0`/`-1` means unlimited). Larger results show the first and last 20 rows
+  around an explicit omitted-rows marker, plus a footer with an
+  order-independent hash of the full result.
+- Long cell values are cut at 500 characters (`.maxcellwidth N`) with a
+  `…(+N chars)` marker.
+- Errors go to stderr as JSON (`exception_type`, `exception_message`),
+  so check stderr — not stdout — for failure details.
+- `EXPLAIN` uses a compact one-operator-per-line plan (also available
+  outside agent mode via `.explain compact`; `.explain box` restores the
+  default).
+- `.tables` lists tables with approximate row counts and columns; `.show`
+  (or bare `:stats`) reports agent status; a startup line on stderr explains
+  why agent mode is on.
+
+Explicit settings (output-mode flags, `.lbugrc` commands such as `:mode`,
+`.maxrows`, `.explain`) take precedence over agent defaults.
+
 ## Shell Meta-Commands
 
 These commands run inside the shell to inspect the database schema and metadata:
