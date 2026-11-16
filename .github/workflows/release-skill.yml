@@ -36,8 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
-      SKILL_NAME: ladybugdb-skill
-      ASSET: ladybugdb-skill.zip
+      SKILL_NAME: ladybug-skill
+      ASSET: ladybug-skill.zip
     steps:
       - uses: actions/checkout@v4
         with:
